@@ -1,0 +1,117 @@
+/**
+ * Backend Node.js Server untuk Tracking Lokasi Realtime Berbasis Izin
+ * Persyaratan: Express, Socket.io, UUID
+ * Jalankan: npm install express socket.io uuid && node server.js
+ */
+
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*" }
+});
+
+app.use(express.json());
+app.use(express.static('public')); // Menyimpan file static HTML front-end
+
+// Database Sederhana dalam Memory untuk Menyimpan Sesi Permintaan
+const trackingSessions = {};
+
+/**
+ * 1. API: Membuat Link/Notifikasi Permintaan Lokasi
+ */
+app.post('/api/request-location', (req, res) => {
+  const { phone, reason } = req.body;
+
+  if (!phone) {
+    return res.status(400).json({ error: 'Nomor HP wajib diisi' });
+  }
+
+  const sessionId = uuidv4(); // Generate Token Akses Unik
+
+  trackingSessions[sessionId] = {
+    phone,
+    reason: reason || 'Permintaan lokasi real-time',
+    status: 'PENDING', // PENDING, GRANTED, DENIED
+    location: null,
+    createdAt: new Date()
+  };
+
+  // URL yang akan dikirim via SMS/Notifikasi Push ke HP Target
+  const trackingUrl = `${req.protocol}://${req.get('host')}/consent.html?token=${sessionId}`;
+
+  // INTEGRASI SMS PROVIDER (Contoh: Twilio / RajaSMS):
+  // sendSMS(phone, `Permintaan akses lokasi: ${trackingUrl}`);
+
+  console.log(`[SMS Simulation] Terkirim ke ${phone}: ${trackingUrl}`);
+
+  return res.json({
+    success: true,
+    sessionId,
+    trackingUrl,
+    message: 'Link Notifikasi berhasil dibuat dan dikirim'
+  });
+});
+
+/**
+ * 2. API: Cek Detail Permintaan berdasarkan Token di HP Penerima
+ */
+app.get('/api/session/:token', (req, res) => {
+  const session = trackingSessions[req.params.token];
+  if (!session) {
+    return res.status(404).json({ error: 'Token tidak valid atau sudah kadaluarsa' });
+  }
+  res.json(session);
+});
+
+/**
+ * 3. Socket.io Connection: Komunikasi Realtime GPS
+ */
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  // Sender bergabung ke Room berdasarkan Session ID
+  socket.on('join-dashboard', (sessionId) => {
+    socket.join(sessionId);
+    console.log(`Sender joined room: ${sessionId}`);
+  });
+
+  // HP Penerima mengirim update lokasi GPS jika diizinkan
+  socket.on('send-location', ({ token, latitude, longitude, accuracy, battery }) => {
+    if (trackingSessions[token]) {
+      trackingSessions[token].status = 'GRANTED';
+      trackingSessions[token].location = { latitude, longitude, accuracy, battery, updatedAt: new Date() };
+
+      // Broadcast koordinat GPS secara instan ke Dashboard Pengirim
+      io.to(token).emit('location-update', {
+        status: 'GRANTED',
+        latitude,
+        longitude,
+        accuracy,
+        battery,
+        timestamp: new Date()
+      });
+    }
+  });
+
+  // HP Penerima menolak izin
+  socket.on('deny-location', ({ token }) => {
+    if (trackingSessions[token]) {
+      trackingSessions[token].status = 'DENIED';
+      io.to(token).emit('location-update', { status: 'DENIED' });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+  });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server Pelacak Lokasi Aktif di http://localhost:${PORT}`);
+});
