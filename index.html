@@ -1,0 +1,406 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Play, Pause, Download, Sparkles, Youtube, Scissor, 
+  Settings, Key, AlertCircle, CheckCircle, Flame, 
+  BarChart2, Type, Subtitles, Clock, RefreshCw, Copy, Check
+} from 'lucide-react';
+
+export default function App() {
+  const [apiKey, setApiKey] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [aspectRatio, setAspectRatio] = useState('9:16');
+  const [clipLength, setClipLength] = useState('30-60');
+  const [captionStyle, setCaptionStyle] = useState('hormozi');
+  
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisStep, setAnalysisStep] = useState('');
+  const [clips, setClips] = useState([]);
+  const [selectedClip, setSelectedClip] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [copiedIndex, setCopiedIndex] = useState(null);
+
+  const sampleUrls = [
+    'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    'https://youtu.be/jNQXAC9IVRw'
+  ];
+
+  const stylePresets = [
+    { id: 'hormozi', name: 'Alex Hormozi', color: 'bg-yellow-400 text-black font-extrabold uppercase', desc: 'Teks tebal kuning-putih dengan animasi pop-up' },
+    { id: 'neon', name: 'Cyber Neon', color: 'bg-cyan-500 text-black font-bold uppercase shadow-lg shadow-cyan-500/50', desc: 'Gaya neon terang cocok untuk gaming/tech' },
+    { id: 'minimal', name: 'Clean Minimal', color: 'bg-white text-black font-medium rounded-md px-2', desc: 'Subtitle bersih & mudah dibaca' }
+  ];
+
+  const handlePasteSample = (url) => {
+    setVideoUrl(url);
+  };
+
+  const handleStartAnalysis = async () => {
+    if (!videoUrl) return;
+    setIsAnalyzing(true);
+    setAnalysisProgress(10);
+    setAnalysisStep('Mengekstrak transkrip audio dari YouTube...');
+
+    await new Promise(r => setTimeout(r, 1200));
+    setAnalysisProgress(35);
+    setAnalysisStep('Menjalankan AI NLP & Sentiment Analysis untuk deteksi hook...');
+
+    await new Promise(r => setTimeout(r, 1500));
+    setAnalysisProgress(65);
+    setAnalysisStep('Menghitung AI Virality Score & memotong rasio 9:16...');
+
+    await new Promise(r => setTimeout(r, 1200));
+    setAnalysisProgress(90);
+    setAnalysisStep('Generasi otomatis subtitle kata per kata...');
+
+    await new Promise(r => setTimeout(r, 800));
+    setAnalysisProgress(100);
+
+    const mockResults = [
+      {
+        id: 1,
+        title: 'Rahasia Menghasilkan Rahasia Sukses Dalam 30 Hari',
+        startTime: '02:14',
+        endTime: '02:59',
+        duration: '45d',
+        viralScore: 98,
+        hookText: "Kalian tidak akan percaya apa yang terjadi kalau konsisten melakukan ini...",
+        transcript: ["Rahasia", "terbesar", "sukses", "bisnis", "digital", "adalah", "KONSISTENSI!", "Jangan", "pernah", "berhenti", "sebelum", "berhasil."],
+        tags: ['Business', 'Motivation', 'Viral']
+      },
+      {
+        id: 2,
+        title: 'Kesalahan Terbesar Pemula Yang Sering Dianggap Sepele',
+        startTime: '05:40',
+        endTime: '06:15',
+        duration: '35d',
+        viralScore: 92,
+        hookText: "99% orang gagal gara-gara satu kesalahan kecil ini!",
+        transcript: ["Jangan", "pernah", "mengabaikan", "detail", "kecil", "karena", "itu", "kunci", "utamanya!"],
+        tags: ['Tips', 'Education']
+      },
+      {
+        id: 3,
+        title: 'Mindset Penting Untuk Bertahan Di Industri 2026',
+        startTime: '10:05',
+        endTime: '10:50',
+        duration: '45d',
+        viralScore: 87,
+        hookText: "Dunia sudah berubah cepat, ini yang wajib kamu persiapkan...",
+        transcript: ["Adaptasi", "atau", "tertinggal.", "Pilihan", "selalu", "ada", "di", "tangan", "kamu."],
+        tags: ['Mindset', 'Future']
+      }
+    ];
+
+    setClips(mockResults);
+    setSelectedClip(mockResults[0]);
+    setIsAnalyzing(false);
+  };
+
+  useEffect(() => {
+    let interval;
+    if (isPlaying && selectedClip) {
+      interval = setInterval(() => {
+        setActiveWordIndex((prev) => (prev + 1) % selectedClip.transcript.length);
+      }, 400);
+    } else {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying, selectedClip]);
+
+  const copyToClipboard = (text, index) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
+      {/* Top Navigation */}
+      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50 px-6 py-4 flex flex-wrap justify-between items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 p-2 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+            <Scissor className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-200 to-indigo-400">
+              ClipViral <span className="text-indigo-400 font-black">AI</span>
+            </h1>
+            <p className="text-xs text-slate-400">Automated Short-Form Video Clipper & Subtitle Generator</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-sm">
+          <Key className="w-4 h-4 text-indigo-400" />
+          <input 
+            type="password"
+            placeholder="Opsional: Masukkan Gemini API Key..."
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className="bg-transparent border-none outline-none text-xs w-48 text-slate-200 placeholder-slate-500"
+          />
+          {apiKey ? (
+            <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" /> Active
+            </span>
+          ) : (
+            <span className="text-xs text-slate-400">(Default Mode)</span>
+          )}
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 pt-8 space-y-8">
+        {/* Input & Configurations Box */}
+        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <Youtube className="w-4 h-4 text-red-500" />
+              Link Video YouTube Panjang
+            </label>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input 
+                type="text"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+              />
+              <button 
+                onClick={handleStartAnalysis}
+                disabled={isAnalyzing || !videoUrl}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 text-white font-semibold px-6 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition cursor-pointer"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5" />
+                    Generate Klip Viral
+                  </>
+                )}
+              </button>
+            </div>
+            {/* Quick Sample Links */}
+            <div className="flex items-center gap-2 pt-1 text-xs text-slate-400">
+              <span>Coba Link Sample:</span>
+              {sampleUrls.map((url, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handlePasteSample(url)}
+                  className="text-indigo-400 underline hover:text-indigo-300"
+                >
+                  Sample #{idx + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Settings Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-800">
+            <div>
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+                Aspek Rasio Output
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['9:16', '16:9', '1:1'].map((ratio) => (
+                  <button
+                    key={ratio}
+                    onClick={() => setAspectRatio(ratio)}
+                    className={`py-2 text-xs font-semibold rounded-lg border transition ${
+                      aspectRatio === ratio 
+                        ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300' 
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    }`}
+                  >
+                    {ratio} {ratio === '9:16' && '(Shorts)'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+                Target Durasi Klip
+              </label>
+              <select
+                value={clipLength}
+                onChange={(e) => setClipLength(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500"
+              >
+                <option value="15-30">15 - 30 Detik (Sangat Singkat)</option>
+                <option value="30-60">30 - 60 Detik (Standard Viral)</option>
+                <option value="60-90">60 - 90 Detik (Mendalam)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+                Gaya Subtitles AI
+              </label>
+              <select
+                value={captionStyle}
+                onChange={(e) => setCaptionStyle(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-indigo-500"
+              >
+                {stylePresets.map(preset => (
+                  <option key={preset.id} value={preset.id}>{preset.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Progress Bar during Analysis */}
+        {isAnalyzing && (
+          <div className="bg-slate-900 border border-indigo-500/30 rounded-xl p-6 space-y-3 animate-pulse">
+            <div className="flex justify-between items-center text-sm font-medium">
+              <span className="text-indigo-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 animate-spin" />
+                {analysisStep}
+              </span>
+              <span className="text-slate-400">{analysisProgress}%</span>
+            </div>
+            <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+              <div 
+                className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full transition-all duration-300"
+                style={{ width: `${analysisProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Clips Results Section */}
+        {clips.length > 0 && !isAnalyzing && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column: Clips List */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
+                <Flame className="w-5 h-5 text-orange-500" />
+                Klip Berpotensi Viral ({clips.length})
+              </h2>
+
+              <div className="space-y-3">
+                {clips.map((clip) => (
+                  <div
+                    key={clip.id}
+                    onClick={() => {
+                      setSelectedClip(clip);
+                      setActiveWordIndex(0);
+                      setIsPlaying(false);
+                    }}
+                    className={`p-4 rounded-xl border transition cursor-pointer space-y-3 ${
+                      selectedClip?.id === clip.id
+                        ? 'bg-slate-900 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                        : 'bg-slate-900/40 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h3 className="font-semibold text-sm text-slate-100 line-clamp-2">{clip.title}</h3>
+                      <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 font-bold text-xs px-2 py-0.5 rounded flex items-center gap-1 shrink-0">
+                        <Flame className="w-3 h-3" /> {clip.viralScore}%
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-400 italic bg-slate-950/60 p-2 rounded border border-slate-800">
+                      "{clip.hookText}"
+                    </p>
+
+                    <div className="flex justify-between items-center text-xs text-slate-400">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" /> {clip.startTime} - {clip.endTime} ({clip.duration})
+                      </span>
+                      <div className="flex gap-1">
+                        {clip.tags.map((t, i) => (
+                          <span key={i} className="bg-slate-800 px-1.5 py-0.5 rounded text-[10px]">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Live Player & Subtitle Preview */}
+            <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-slate-200 flex items-center gap-2">
+                  <Type className="w-5 h-5 text-indigo-400" />
+                  Preview & Live Subtitle
+                </h2>
+                <button
+                  onClick={() => copyToClipboard(selectedClip?.transcript.join(' '), 99)}
+                  className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition"
+                >
+                  {copiedIndex === 99 ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedIndex === 99 ? 'Tersalin' : 'Salin Subtitle'}
+                </button>
+              </div>
+
+              {/* Video Player Frame (9:16 Mockup) */}
+              <div className="flex justify-center">
+                <div className="relative w-full max-w-sm aspect-[9/16] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col justify-between p-4 group">
+                  {/* Simulated Background Content */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-slate-900/60 via-slate-950/80 to-slate-950 flex items-center justify-center">
+                    <span className="text-slate-700 text-xs tracking-widest font-mono">SIMULATION VIDEO PLAYER</span>
+                  </div>
+
+                  {/* Top Overlay Badge */}
+                  <div className="relative z-10 flex justify-between items-center">
+                    <span className="bg-slate-900/80 backdrop-blur text-xs px-2.5 py-1 rounded-full text-slate-300 border border-slate-700">
+                      {selectedClip?.startTime} - {selectedClip?.endTime}
+                    </span>
+                    <span className="bg-indigo-600/80 backdrop-blur text-xs px-2.5 py-1 rounded-full text-white font-semibold">
+                      9:16 Shorts
+                    </span>
+                  </div>
+
+                  {/* Animated Word Subtitle Overlay */}
+                  <div className="relative z-10 text-center my-auto px-4">
+                    <div className="inline-block transition-all duration-150 transform scale-105">
+                      <span className={`px-3 py-1.5 rounded-lg text-lg sm:text-xl ${stylePresets.find(s => s.id === captionStyle)?.color}`}>
+                        {selectedClip?.transcript[activeWordIndex]}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Player Controls */}
+                  <div className="relative z-10 flex flex-col gap-3">
+                    <div className="flex justify-between items-center bg-slate-900/90 backdrop-blur p-3 rounded-xl border border-slate-800">
+                      <button 
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-lg transition"
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+                      </button>
+                      <span className="text-xs text-slate-400 font-mono">
+                        Kata {activeWordIndex + 1} dari {selectedClip?.transcript.length}
+                      </span>
+                      <button 
+                        onClick={() => setActiveWordIndex(0)}
+                        className="text-slate-400 hover:text-white p-1"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <button 
+                      onClick={() => alert(`Mengunduh Klip: ${selectedClip?.title}`)}
+                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition"
+                    >
+                      <Download className="w-4 h-4" /> Export Klip MP4
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
