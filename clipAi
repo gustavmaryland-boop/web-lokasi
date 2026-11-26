@@ -1,0 +1,794 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Sparkles,
+  Youtube,
+  Play,
+  Pause,
+  Download,
+  Copy,
+  Check,
+  Scissors,
+  Flame,
+  Key,
+  Settings,
+  Tv,
+  Layers,
+  Zap,
+  RefreshCw,
+  Sliders,
+  Type,
+  TrendingUp,
+  Clock,
+  Share2,
+  Info,
+  Maximize2,
+  Subtitles,
+  Smartphone,
+  Monitor,
+  Square,
+  ChevronRight,
+  Video
+} from 'lucide-react';
+
+// Sample demo videos for quick start
+const DEMO_VIDEOS = [
+  {
+    title: "AI & The Future of Work - Tech Podcast",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    duration: "45:20",
+    thumbnail: "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=600&auto=format&fit=crop&q=80"
+  },
+  {
+    title: "How to Build a 7-Figure Business in 2025",
+    url: "https://www.youtube.com/watch?v=3JZ_D3ELwOQ",
+    duration: "1:12:05",
+    thumbnail: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=600&auto=format&fit=crop&q=80"
+  },
+  {
+    title: "Secrets of High Performers & Brain Science",
+    url: "https://www.youtube.com/watch?v=2Vv-BfVoq4g",
+    duration: "38:40",
+    thumbnail: "https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=600&auto=format&fit=crop&q=80"
+  }
+];
+
+// Mock Viral Clips Data for initial fallback / instant demo
+const MOCK_GENERATED_CLIPS = [
+  {
+    id: 'clip-1',
+    title: 'The Hidden Trap in Modern Productivity Algorithms',
+    viralScore: 96,
+    badge: 'High Potential',
+    timestamp: '04:12 - 04:55',
+    duration: '43s',
+    explanation: 'Contains a strong controversial hook about focus, high emotional spike, and actionable advice.',
+    hook: 'Stop working 8 hours a day. Here is what top 1% engineers actually do...',
+    caption: 'Why traditional hard work is dead in 2025 🚀 #Productivity #TechTips #Mindset #Viral',
+    subtitles: [
+      { start: 0, end: 2.5, text: "Stop working 8 hours a day!" },
+      { start: 2.5, end: 5.0, text: "Here is what top 1% engineers" },
+      { start: 5.0, end: 7.5, text: "ACTUALLY do to scale faster." },
+      { start: 7.5, end: 10.0, text: "It's not about grinding harder," },
+      { start: 10.0, end: 13.0, text: "it's about leverage & focus!" }
+    ],
+    videoBg: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=400&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'clip-2',
+    title: 'Why 90% of Startups Fail Before Year 2',
+    viralScore: 91,
+    badge: 'Trending Topic',
+    timestamp: '14:30 - 15:15',
+    duration: '45s',
+    explanation: 'Direct answers to audience burning question with clear step-by-step breakdown.',
+    hook: 'The real reason your business isn\'t growing isn\'t marketing...',
+    caption: 'Avoid this mistake at all costs if you are launching a product 🔥 #Business #Startups #Growth',
+    subtitles: [
+      { start: 0, end: 2.2, text: "The real reason startups fail..." },
+      { start: 2.2, end: 4.8, text: "isn't lack of funding or marketing." },
+      { start: 4.8, end: 7.5, text: "It's solving a problem nobody cares about!" },
+      { start: 7.5, end: 11.0, text: "Here is how to validate your market instantly." }
+    ],
+    videoBg: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400&auto=format&fit=crop&q=80'
+  },
+  {
+    id: 'clip-3',
+    title: 'Mastering Morning Routines for Dopamine Control',
+    viralScore: 88,
+    badge: 'High Potential',
+    timestamp: '27:10 - 27:50',
+    duration: '40s',
+    explanation: 'Relatable health & neuroscience topic that triggers curiosity and high save rate.',
+    hook: 'If you check your phone first thing in the morning, watch this.',
+    caption: 'Reset your dopamine baseline with this simple 5-minute habit 💡 #Neuroscience #Health #Habits',
+    subtitles: [
+      { start: 0, end: 2.5, text: "If you check your phone early..." },
+      { start: 2.5, end: 5.2, text: "You are destroying your focus all day!" },
+      { start: 5.2, end: 8.0, text: "Instead, try 10 minutes of sunlight." },
+      { start: 8.0, end: 11.0, text: "Your brain will thank you later." }
+    ],
+    videoBg: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&auto=format&fit=crop&q=80'
+  }
+];
+
+export default function App() {
+  // Application States
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [credits, setCredits] = useState(150);
+
+  // Clipping Preferences
+  const [clipLength, setClipLength] = useState('30-60'); // '15-30', '30-60', '60+'
+  const [aspectRatio, setAspectRatio] = useState('9:16'); // '9:16', '16:9', '1:1'
+  const [subtitleStyle, setSubtitleStyle] = useState('hormozi'); // 'hormozi', 'clean', 'neon'
+  const [autoEmoji, setAutoEmoji] = useState(true);
+
+  // Processing & Simulation States
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [progressStage, setProgressStage] = useState(0);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [clips, setClips] = useState([]);
+  const [copiedId, setCopiedId] = useState(null);
+  const [activeClip, setActiveClip] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentSubtitleIdx, setCurrentSubtitleIdx] = useState(0);
+
+  // Stage Messages for Processing Simulator
+  const stages = [
+    { title: 'Fetching Video Data', detail: 'Extracting transcript, metadata, and audio spectrum...' },
+    { title: 'AI Analyzing Viral Hooks', detail: 'Scanning for high emotional spikes and engaging moments using Gemini...' },
+    { title: 'Refining & Re-framing', detail: 'Auto-cropping subjects to dynamic vertical frame...' },
+    { title: 'Generating Dynamic Subtitles', detail: 'Applying animation, highlight keywords, and auto-emojis...' },
+    { title: 'Finalizing Clips', detail: 'Rendering preview clips and computing virality score...' }
+  ];
+
+  // Handle URL Paste
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.includes('youtube.com') || text.includes('youtu.be')) {
+        setYoutubeUrl(text);
+      } else {
+        alert('Standard paste: Please make sure the clipboard contains a valid YouTube link.');
+      }
+    } catch (err) {
+      console.error('Failed to read clipboard', err);
+    }
+  };
+
+  // Call Gemini API if Key is present, or fallback to smart generator
+  const analyzeWithGemini = async (url) => {
+    if (!apiKey.trim()) return null;
+
+    try {
+      const systemPrompt = `You are a world-class viral video editor & short-form growth strategist (Opus Clip expert).
+Analyze this YouTube URL: "${url}".
+Generate 3 viral short clips suggestions based on common high-engagement topics for this kind of video.
+Respond with a strictly valid JSON array of objects with keys:
+"title" (string), "viralScore" (number 80-99), "badge" ("High Potential" or "Trending Topic"),
+"timestamp" (string like "03:15 - 04:00"), "duration" (string like "45s"),
+"explanation" (string explaining why it is viral),
+"hook" (engaging 1-sentence hook),
+"caption" (social caption with hashtags),
+"subtitles" (array of objects with "start", "end", "text").`;
+
+      const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const res = await fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      if (!res.ok) throw new Error('Gemini API call failed');
+
+      const data = await res.json();
+      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawText) {
+        const parsed = JSON.parse(rawText);
+        // Enrich with mock backgrounds for preview player
+        return parsed.map((item, idx) => ({
+          ...item,
+          id: `gemini-clip-${idx}`,
+          videoBg: MOCK_GENERATED_CLIPS[idx % MOCK_GENERATED_CLIPS.length].videoBg
+        }));
+      }
+    } catch (e) {
+      console.warn('Gemini analysis failed or key invalid, using simulation fallback:', e);
+    }
+    return null;
+  };
+
+  // Start Generation Process
+  const handleGenerate = async () => {
+    if (!youtubeUrl.trim()) return;
+
+    setIsProcessing(true);
+    setProgressStage(0);
+    setProgressPercent(0);
+    setClips([]);
+
+    // Start progress animation
+    const totalDuration = 4500; // 4.5 sec simulation
+    const intervalTime = 100;
+    const increment = 100 / (totalDuration / intervalTime);
+
+    let currentPercent = 0;
+    const interval = setInterval(() => {
+      currentPercent += increment;
+      if (currentPercent >= 100) {
+        currentPercent = 100;
+        clearInterval(interval);
+      }
+      setProgressPercent(Math.floor(currentPercent));
+      setProgressStage(Math.min(Math.floor((currentPercent / 100) * stages.length), stages.length - 1));
+    }, intervalTime);
+
+    // Call Gemini or fallback concurrently
+    const apiResult = await analyzeWithGemini(youtubeUrl);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      setIsProcessing(false);
+      const finalClips = apiResult || MOCK_GENERATED_CLIPS;
+      setClips(finalClips);
+      setActiveClip(finalClips[0]);
+      setCredits(prev => Math.max(0, prev - 15));
+    }, totalDuration);
+  };
+
+  // Subtitle animation timer effect for clip player preview
+  useEffect(() => {
+    let timer;
+    if (isPlaying && activeClip && activeClip.subtitles?.length > 0) {
+      timer = setInterval(() => {
+        setCurrentSubtitleIdx(prev => (prev + 1) % activeClip.subtitles.length);
+      }, 2500);
+    } else {
+      setCurrentSubtitleIdx(0);
+    }
+    return () => clearInterval(timer);
+  }, [isPlaying, activeClip]);
+
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-violet-500 selection:text-white pb-16">
+      
+      {/* BACKGROUND DECORATIVE GLOW */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-violet-600/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-emerald-600/15 rounded-full blur-3xl"></div>
+      </div>
+
+      {/* NAVBAR / HEADER */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-slate-950/80 border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-violet-600 via-indigo-500 to-cyan-400 p-0.5 shadow-lg shadow-violet-500/30 flex items-center justify-center">
+              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                <Scissors className="w-5 h-5 text-cyan-400" />
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+                  ClipViral
+                </span>
+                <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30">
+                  AI v2.5
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 hidden sm:block">Automated Short Video Engine</p>
+            </div>
+          </div>
+
+          {/* Right Action Bar */}
+          <div className="flex items-center gap-3">
+            {/* Credits Counter */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-300">
+              <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              <span className="font-semibold text-slate-100">{credits}</span>
+              <span className="text-slate-500">Credits left</span>
+            </div>
+
+            {/* API Settings Button */}
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`p-2 rounded-xl border transition-all flex items-center gap-2 text-xs font-medium ${
+                apiKey
+                  ? 'bg-violet-950/50 border-violet-700/60 text-violet-300'
+                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+              }`}
+            >
+              <Key className="w-4 h-4 text-violet-400" />
+              <span className="hidden md:inline">{apiKey ? 'Gemini Active' : 'API Key'}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* GEMINI API SETTINGS MODAL / PANEL */}
+      {showSettings && (
+        <div className="relative z-50 max-w-7xl mx-auto px-4 lg:px-8 mt-4">
+          <div className="p-4 sm:p-6 rounded-2xl bg-slate-900/90 border border-violet-500/30 backdrop-blur-xl shadow-2xl relative">
+            <button 
+              onClick={() => setShowSettings(false)} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-xs px-2 py-1 rounded-lg bg-slate-800"
+            >
+              ✕ Close
+            </button>
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-5 h-5 text-violet-400" />
+              <h3 className="font-semibold text-slate-100">Gemini AI Integration</h3>
+            </div>
+            <p className="text-xs text-slate-400 mb-4 max-w-2xl">
+              Masukkan Gemini API Key Anda untuk analisis mendalam dari video YouTube secara gratis. Jika kosong, sistem akan menggunakan simulator AI bawaan.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="Paste your AI Studio Key here (AIzaSy...)"
+                  className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-slate-200 focus:outline-none focus:border-violet-500"
+                />
+              </div>
+              <button
+                onClick={() => setShowSettings(false)}
+                className="px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-medium text-xs transition"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN CONTAINER */}
+      <main className="relative z-10 max-w-7xl mx-auto px-4 lg:px-8 pt-8 space-y-10">
+
+        {/* HERO HEADER */}
+        <div className="text-center max-w-3xl mx-auto space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium">
+            <Flame className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+            <span>Turn 1 Long Video into 5+ Viral Shorts in 60 Seconds</span>
+          </div>
+          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-tight">
+            AI Auto-Clipper for <br />
+            <span className="bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">
+              YouTube Shorts, Reels & TikTok
+            </span>
+          </h1>
+          <p className="text-slate-400 text-sm sm:text-base">
+            Otomatis deteksi momen paling menarik, pemotongan rasio 9:16 cerdas, serta caption dinamis beranimasi.
+          </p>
+        </div>
+
+        {/* INPUT FORM & PREFERENCES PANEL */}
+        <div className="max-w-4xl mx-auto bg-slate-900/60 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl backdrop-blur-md space-y-6">
+          
+          {/* URL Input Row */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+              <Youtube className="w-4 h-4 text-red-500" />
+              YouTube Video URL
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={youtubeUrl}
+                  onChange={(e) => setYoutubeUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  className="w-full pl-4 pr-24 py-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-violet-500 transition"
+                />
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  className="absolute right-2 top-2 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition"
+                >
+                  Paste
+                </button>
+              </div>
+
+              <button
+                disabled={isProcessing || !youtubeUrl.trim()}
+                onClick={handleGenerate}
+                className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 hover:opacity-95 text-white font-semibold text-sm shadow-lg shadow-violet-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 fill-white" />
+                    <span>Get Viral Clips</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Demo Buttons */}
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 pt-1">
+            <span className="font-medium text-slate-500">Quick Try Demo:</span>
+            {DEMO_VIDEOS.map((demo, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setYoutubeUrl(demo.url)}
+                className="px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800/80 hover:border-violet-500/50 hover:text-slate-200 transition text-left flex items-center gap-1.5"
+              >
+                <Play className="w-3 h-3 text-violet-400 fill-violet-400" />
+                <span className="truncate max-w-[140px] sm:max-w-[180px]">{demo.title}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Preferences Options Grid */}
+          <div className="border-t border-slate-800/80 pt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Aspect Ratio */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-violet-400" /> Aspect Ratio
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                {[
+                  { id: '9:16', label: '9:16', icon: Smartphone },
+                  { id: '16:9', label: '16:9', icon: Monitor },
+                  { id: '1:1', label: '1:1', icon: Square }
+                ].map(opt => {
+                  const Icon = opt.icon;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => setAspectRatio(opt.id)}
+                      className={`flex flex-col items-center justify-center py-2 rounded-lg text-xs font-medium transition ${
+                        aspectRatio === opt.id
+                          ? 'bg-violet-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5 mb-1" />
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Clip Duration */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-cyan-400" /> Target Clip Length
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                {[
+                  { id: '15-30', label: '15-30s' },
+                  { id: '30-60', label: '30-60s' },
+                  { id: '60+', label: '60s+' }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setClipLength(opt.id)}
+                    className={`py-2 rounded-lg text-xs font-medium transition ${
+                      clipLength === opt.id
+                        ? 'bg-cyan-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Subtitle Presets */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+                <Type className="w-3.5 h-3.5 text-emerald-400" /> Subtitle Style
+              </label>
+              <select
+                value={subtitleStyle}
+                onChange={(e) => setSubtitleStyle(e.target.value)}
+                className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="hormozi">Alex Hormozi (Bold & Animated)</option>
+                <option value="clean">Clean Minimalist White</option>
+                <option value="neon">Cyber Neon Glow</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* AI ANALYSIS SIMULATION LOADING STATE */}
+        {isProcessing && (
+          <div className="max-w-3xl mx-auto bg-slate-900/90 border border-violet-500/30 rounded-3xl p-8 shadow-2xl text-center space-y-6 backdrop-blur-xl">
+            <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-4 border-violet-500/20 border-t-violet-500 animate-spin"></div>
+              <Sparkles className="w-10 h-10 text-violet-400 animate-pulse" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold text-white">{stages[progressStage].title}</h3>
+              <p className="text-xs text-slate-400">{stages[progressStage].detail}</p>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-950 rounded-full h-3 border border-slate-800 overflow-hidden p-0.5">
+              <div
+                className="bg-gradient-to-r from-violet-500 via-indigo-500 to-cyan-400 h-full rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
+
+            {/* Step Indicators */}
+            <div className="grid grid-cols-5 gap-2 pt-2">
+              {stages.map((stg, idx) => (
+                <div
+                  key={idx}
+                  className={`h-1.5 rounded-full transition-all ${
+                    idx <= progressStage ? 'bg-violet-500' : 'bg-slate-800'
+                  }`}
+                ></div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* CLIPS RESULTS DASHBOARD */}
+        {clips.length > 0 && !isProcessing && (
+          <div className="space-y-8 animate-fadeIn">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <Flame className="w-6 h-6 text-amber-500 fill-amber-500" />
+                  Generated Viral Clips
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Ditemukan {clips.length} segmen berpotensi tinggi untuk dipublikasikan ke TikTok/Reels/Shorts.
+                </p>
+              </div>
+            </div>
+
+            {/* Main Grid Layout: Left Player, Right List */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+              
+              {/* VIDEO PLAYER PREVIEW CARD (COL-5) */}
+              <div className="lg:col-span-5 sticky top-24 space-y-4">
+                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 shadow-2xl overflow-hidden">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                      <Tv className="w-4 h-4 text-violet-400" />
+                      Live Subtitle Preview
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400">
+                      Ratio {aspectRatio}
+                    </span>
+                  </div>
+
+                  {/* Canvas / Dynamic Vertical Player simulation */}
+                  <div className="relative aspect-[9/16] w-full max-w-[320px] mx-auto rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 group shadow-inner">
+                    {/* Background image preview */}
+                    <img
+                      src={activeClip?.videoBg}
+                      alt="Clip Preview"
+                      className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition duration-500"
+                    />
+
+                    {/* Dark gradient overlays */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
+
+                    {/* Top Stats Overlay */}
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
+                      <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-bold text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                        <Flame className="w-3 h-3 fill-amber-400" />
+                        Viral Score {activeClip?.viralScore}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-medium text-slate-300">
+                        {activeClip?.duration}
+                      </span>
+                    </div>
+
+                    {/* CENTER DYNAMIC SUBTITLE SIMULATION */}
+                    <div className="absolute inset-x-4 bottom-24 text-center">
+                      <div className="inline-block px-4 py-2 rounded-xl backdrop-blur-md bg-black/70 border border-white/10 shadow-2xl transform transition-all duration-300">
+                        <p className={`text-sm sm:text-base font-extrabold uppercase tracking-wide ${
+                          subtitleStyle === 'hormozi' 
+                            ? 'text-yellow-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]'
+                            : subtitleStyle === 'neon'
+                            ? 'text-cyan-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                            : 'text-white'
+                        }`}>
+                          {activeClip?.subtitles?.[currentSubtitleIdx]?.text || activeClip?.hook}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Play / Pause Toggle overlay */}
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition duration-300"
+                    >
+                      <div className="w-14 h-14 rounded-full bg-violet-600/90 text-white flex items-center justify-center shadow-xl">
+                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Player Controls */}
+                  <div className="mt-4 flex items-center justify-between px-2">
+                    <button
+                      onClick={() => setIsPlaying(!isPlaying)}
+                      className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-500 text-white transition"
+                    >
+                      {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                      {isPlaying ? 'Pause Preview' : 'Play Preview'}
+                    </button>
+
+                    <button
+                      onClick={() => alert(`Simulasi Download Clip MP4: "${activeClip?.title}"`)}
+                      className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition"
+                    >
+                      <Download className="w-3.5 h-3.5 text-cyan-400" />
+                      Download MP4
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CLIPS LIST GRID (COL-7) */}
+              <div className="lg:col-span-7 space-y-4">
+                {clips.map((clip) => {
+                  const isSelected = activeClip?.id === clip.id;
+                  return (
+                    <div
+                      key={clip.id}
+                      onClick={() => {
+                        setActiveClip(clip);
+                        setIsPlaying(true);
+                      }}
+                      className={`p-5 rounded-3xl border transition-all cursor-pointer relative overflow-hidden ${
+                        isSelected
+                          ? 'bg-slate-900 border-violet-500/80 shadow-xl shadow-violet-950/50 ring-1 ring-violet-500/50'
+                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                            <Flame className="w-3 h-3 fill-amber-400" />
+                            Viral Score: {clip.viralScore}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-800 text-slate-300">
+                            {clip.timestamp} ({clip.duration})
+                          </span>
+                        </div>
+
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400 bg-violet-500/10 px-2 py-0.5 rounded-md border border-violet-500/20">
+                          {clip.badge}
+                        </span>
+                      </div>
+
+                      <h3 className="text-base font-bold text-white mb-2 leading-snug">
+                        {clip.title}
+                      </h3>
+
+                      {/* AI Explanation */}
+                      <p className="text-xs text-slate-400 mb-4 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                        <strong className="text-violet-400 font-semibold">Why it will go viral:</strong> {clip.explanation}
+                      </p>
+
+                      {/* Suggested Hook */}
+                      <div className="space-y-1 mb-4">
+                        <span className="text-[11px] font-semibold text-slate-400 uppercase">Suggested Opening Hook:</span>
+                        <p className="text-xs text-slate-200 italic bg-violet-950/30 p-2.5 rounded-xl border border-violet-800/40">
+                          "{clip.hook}"
+                        </p>
+                      </div>
+
+                      {/* Caption & Copy Action */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-800/60">
+                        <div className="text-xs text-slate-400 truncate max-w-md">
+                          <span className="text-slate-500">Caption: </span>
+                          <span className="text-slate-300">{clip.caption}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyToClipboard(clip.caption, `cap-${clip.id}`);
+                            }}
+                            className="flex items-center gap-1 text-[11px] font-medium px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+                          >
+                            {copiedId === `cap-${clip.id}` ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-400" />
+                                <span className="text-emerald-400">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Copy Caption</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveClip(clip);
+                              setIsPlaying(true);
+                            }}
+                            className="flex items-center gap-1 text-[11px] font-semibold px-3.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition"
+                          >
+                            <Play className="w-3 h-3 fill-white" />
+                            <span>Preview</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* FEATURES INFOGRAPHIC / FOOTER PROMO */}
+        <div className="border-t border-slate-800/80 pt-12 mt-16 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 mb-3">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <h4 className="font-bold text-white text-sm">AI Emotion & Spike Detection</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Gemini AI memindai transkrip video untuk menemukan hook dramatis dan poin kunci yang paling memancing engagement pengguna.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 mb-3">
+              <Subtitles className="w-5 h-5" />
+            </div>
+            <h4 className="font-bold text-white text-sm">Dynamic Animated Captions</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Subtitle otomatis beranimasi ala Alex Hormozi lengkap dengan keyword highlighting dan emoji untuk retensi penonton hingga 85%.
+            </p>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-800/80 space-y-2">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-3">
+              <Smartphone className="w-5 h-5" />
+            </div>
+            <h4 className="font-bold text-white text-sm">Auto 9:16 Smart Reframing</h4>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Otomatis melacak posisi pembicara utama dan mengubah video lanskap menjadi format potret TikTok/Reels presisi tinggi.
+            </p>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
+}
