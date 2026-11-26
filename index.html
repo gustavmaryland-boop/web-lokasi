@@ -1,0 +1,497 @@
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Pelacak Lokasi Live & Simulasi Notifikasi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        .phone-frame {
+            border: 10px solid #1e293b;
+            border-radius: 36px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.85; }
+            50% { transform: scale(1.25); opacity: 0.35; }
+            100% { transform: scale(0.95); opacity: 0.85; }
+        }
+        .pulse-effect {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-3 sm:p-6">
+
+    <!-- Bagian Kepala & Tombol Ganti Mode -->
+    <header class="max-w-6xl mx-auto w-full text-center mb-6">
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs mb-3">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span>Aplikasi Web Siap Pakai (Berbasis Izin Pengguna)</span>
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent mb-2">
+            Live Location Tracker Web
+        </h1>
+        <p class="text-slate-400 max-w-2xl mx-auto text-xs sm:text-sm">
+            Gunakan <strong>Mode Simulasi HP</strong> untuk mencoba alur notifikasi SMS &amp; konfirmasi izin, atau <strong>Mode GPS Asli</strong> untuk melihat posisi perangkat Anda langsung di peta.
+        </p>
+
+        <!-- Kotak pesan informasi -->
+        <div id="statusAlert" class="hidden max-w-xl mx-auto mt-3 rounded-xl p-3 text-xs border text-left"></div>
+
+        <!-- Tombol Pilihan Mode -->
+        <div class="flex flex-wrap justify-center gap-2 mt-4">
+            <button id="btnModeSim" type="button" onclick="switchMode('sim')" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition flex items-center gap-2">
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                <span>Mode Simulasi HP &amp; SMS</span>
+            </button>
+            <button id="btnModeLive" type="button" onclick="switchMode('live')" class="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-2">
+                <i data-lucide="crosshair" class="w-4 h-4"></i>
+                <span>Mode Pelacak GPS Asli</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MODE 1: SIMULASI NOTIFIKASI & LAYAR HP TARGET -->
+    <main id="simSection" class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-2 gap-6 items-start mb-8">
+        <!-- Panel Pengirim -->
+        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col min-h-[580px] shadow-2xl">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800 gap-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-400 flex items-center justify-center">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-base text-slate-100">Dashboard Pengirim</h2>
+                        <p class="text-xs text-slate-400">Kirim permintaan &amp; pantau respon</p>
+                    </div>
+                </div>
+                <span id="simBadge" class="px-3 py-1 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                    Siap Digunakan
+                </span>
+            </div>
+
+            <!-- Form Awal -->
+            <div id="simFormArea" class="flex-1 flex flex-col justify-center space-y-4 my-4">
+                <div class="space-y-1.5">
+                    <label for="simPhone" class="text-xs font-medium text-slate-300">Nomor HP Target</label>
+                    <div class="relative">
+                        <i data-lucide="phone" class="w-4 h-4 absolute left-3 top-3 text-slate-500"></i>
+                        <input id="simPhone" type="tel" value="+62 812-3456-7890" class="w-full bg-slate-950 border border-slate-800 rounded-xl py-2.5 pl-9 pr-3 text-sm text-slate-100 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label for="simReason" class="text-xs font-medium text-slate-300">Pesan Permintaan Lokasi</label>
+                    <textarea id="simReason" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-100 focus:outline-none focus:border-blue-500">Halo, mohon izinkan akses lokasi terkini untuk keperluan penjemputan paket.</textarea>
+                </div>
+
+                <button type="button" onclick="sendSimNotification()" class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
+                    <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+                    <span>Kirim Notifikasi SMS ke HP Target</span>
+                </button>
+            </div>
+
+            <!-- Area Hasil Pantauan -->
+            <div id="simResultArea" class="hidden flex-1 flex-col justify-between space-y-3 mt-4">
+                <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex-1 flex flex-col items-center justify-center min-h-[280px] relative overflow-hidden">
+                    <div id="simWaitingBox" class="flex flex-col items-center gap-3 text-center">
+                        <div class="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                        <p class="text-xs text-slate-400">Menunggu penerima membuka notifikasi di layar HP sebelah...</p>
+                    </div>
+
+                    <div id="simGrantedBox" class="hidden flex-col items-center text-center space-y-2.5 w-full">
+                        <div class="w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400 pulse-effect">
+                            <i data-lucide="map-pin" class="w-7 h-7"></i>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider">Lokasi Terhubung</p>
+                            <h3 class="text-lg font-bold text-slate-100">Tangerang, Banten</h3>
+                            <p class="text-[11px] text-slate-400 font-mono">Lat: -6.178306 | Long: 106.631889</p>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 w-full text-left text-[11px] space-y-1">
+                            <div class="flex justify-between text-slate-400"><span>Akurasi:</span> <span class="text-emerald-400 font-medium">5 meter</span></div>
+                            <div class="flex justify-between text-slate-400"><span>Status Izin:</span> <span class="text-emerald-400 font-medium">Diizinkan Penerima</span></div>
+                        </div>
+                    </div>
+
+                    <div id="simDeniedBox" class="hidden flex-col items-center text-center space-y-2">
+                        <div class="w-12 h-12 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                            <i data-lucide="shield-x" class="w-6 h-6"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-rose-400">Akses Lokasi Ditolak</p>
+                        <p class="text-[11px] text-slate-500">Penerima memilih menolak permintaan berbagi lokasi.</p>
+                    </div>
+                </div>
+
+                <button type="button" onclick="resetSim()" class="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl transition flex items-center justify-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    <span>Ulangi Simulasi</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Simulasi Layar HP Target -->
+        <div class="flex flex-col items-center">
+            <div class="phone-frame w-full max-w-[320px] h-[580px] bg-slate-950 flex flex-col justify-between overflow-hidden relative">
+                <div class="bg-slate-900 pt-2.5 pb-2 px-5 flex justify-between items-center text-[11px] text-slate-400 border-b border-slate-800">
+                    <span id="clockDisplay">10:41</span>
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="wifi" class="w-3 h-3"></i>
+                        <i data-lucide="battery-charging" class="w-3 h-3"></i>
+                    </div>
+                </div>
+
+                <div class="flex-1 p-3.5 flex flex-col justify-start overflow-y-auto">
+                    <div id="phoneIdle" class="flex-1 flex flex-col items-center justify-center text-center space-y-3">
+                        <div class="w-14 h-14 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+                            <i data-lucide="smartphone" class="w-7 h-7"></i>
+                        </div>
+                        <p class="text-xs text-slate-500 px-2">Layar HP Target<br>Klik tombol kirim di dashboard kiri untuk memunculkan notifikasi SMS.</p>
+                    </div>
+
+                    <div id="phoneSmsBanner" role="button" tabindex="0" onclick="openSmsConsent()" class="hidden bg-slate-900 border border-blue-500/40 rounded-2xl p-3 shadow-xl cursor-pointer hover:border-blue-400 transition">
+                        <div class="flex items-start gap-2.5">
+                            <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0 font-bold text-[10px]">
+                                SMS
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-center mb-0.5">
+                                    <span class="text-[11px] font-bold text-slate-100">Pesan Masuk</span>
+                                    <span class="text-[10px] text-blue-400">Ketuk buka</span>
+                                </div>
+                                <p id="smsLinkPreview" class="text-[11px] text-slate-300 truncate font-mono"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="phoneConsentScreen" class="hidden flex-1 flex-col justify-between bg-slate-900 rounded-2xl p-3.5 border border-slate-800">
+                        <div class="text-center pb-2 border-b border-slate-800">
+                            <div class="inline-flex p-2 rounded-full bg-amber-500/10 text-amber-400 mb-1">
+                                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="font-bold text-xs text-slate-100">Konfirmasi Izin Lokasi</h3>
+                            <p class="text-[10px] text-slate-400">Pilih apakah lokasi ingin dibagikan</p>
+                        </div>
+
+                        <div class="my-auto py-3">
+                            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] space-y-1">
+                                <span class="text-slate-500 text-[10px] block">Pesan Pengirim:</span>
+                                <p id="phoneReasonText" class="italic text-slate-200"></p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <button type="button" onclick="grantSimLocation()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                <span>Izinkan Berbagi Lokasi</span>
+                            </button>
+                            <button type="button" onclick="denySimLocation()" class="w-full py-2.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-400 font-semibold text-xs rounded-xl border border-rose-500/30 transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                                <span>Tolak Akses</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="phoneFinalScreen" class="hidden flex-1 flex-col items-center justify-center text-center space-y-2.5 p-3">
+                        <div id="phoneFinalIcon" class="w-12 h-12 rounded-full flex items-center justify-center"></div>
+                        <h4 id="phoneFinalTitle" class="font-bold text-xs text-slate-100"></h4>
+                        <p id="phoneFinalDesc" class="text-[11px] text-slate-400"></p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 py-2 flex justify-center items-center border-t border-slate-800">
+                    <div class="w-24 h-1 bg-slate-700 rounded-full"></div>
+                </div>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2">Simulasi Layar HP Penerima</p>
+        </div>
+    </main>
+
+    <!-- MODE 2: PELACAK GPS ASLI PERANGKAT ANDA -->
+    <main id="liveSection" class="hidden max-w-6xl mx-auto w-full bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-6 shadow-2xl mb-8 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-4 gap-3">
+            <div>
+                <h2 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                    <i data-lucide="map-pin" class="w-5 h-5 text-emerald-400"></i>
+                    <span>Pelacak GPS Perangkat Anda</span>
+                </h2>
+                <p class="text-xs text-slate-400">Mengambil koordinat GPS asli dari perangkat yang sedang membuka halaman ini.</p>
+            </div>
+            <button type="button" onclick="activateDeviceGPS()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs transition flex items-center gap-2 shadow-lg shadow-emerald-600/30">
+                <i data-lucide="navigation" class="w-4 h-4"></i>
+                <span>Aktifkan GPS Saya</span>
+            </button>
+        </div>
+
+        <div id="gpsMap" class="w-full h-80 sm:h-96 rounded-2xl border border-slate-800 z-10"></div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <span class="text-slate-500 block">Latitude</span>
+                <span id="gpsLat" class="font-mono font-bold text-slate-200">-</span>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <span class="text-slate-500 block">Longitude</span>
+                <span id="gpsLng" class="font-mono font-bold text-slate-200">-</span>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <span class="text-slate-500 block">Akurasi</span>
+                <span id="gpsAcc" class="font-mono font-bold text-emerald-400">-</span>
+            </div>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                <span class="text-slate-500 block">Status</span>
+                <span id="gpsStatus" class="font-mono font-bold text-amber-400">Belum Aktif</span>
+            </div>
+        </div>
+    </main>
+
+    <footer class="max-w-6xl mx-auto w-full bg-slate-900/70 border border-slate-800 rounded-2xl p-4 text-xs text-slate-400 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <span>Pelacakan lokasi hanya berjalan jika pengguna menyetujui izin akses lokasi pada perangkatnya.</span>
+        <span class="text-slate-500">Peta: OpenStreetMap &amp; Leaflet</span>
+    </footer>
+
+    <script>
+        function refreshIcons() {
+            try {
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.lucide.createIcons();
+                }
+            } catch (e) {}
+        }
+        refreshIcons();
+
+        function showAlert(message, type = 'error') {
+            const box = document.getElementById('statusAlert');
+            if (!box) return;
+            box.textContent = message;
+            box.classList.remove('hidden');
+            box.className = type === 'error'
+                ? 'max-w-xl mx-auto mt-3 rounded-xl p-3 text-xs border text-left bg-rose-500/10 border-rose-500/30 text-rose-300'
+                : 'max-w-xl mx-auto mt-3 rounded-xl p-3 text-xs border text-left bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
+        }
+
+        function hideAlert() {
+            const box = document.getElementById('statusAlert');
+            if (box) box.classList.add('hidden');
+        }
+
+        function updateClock() {
+            const el = document.getElementById('clockDisplay');
+            if (!el) return;
+            const now = new Date();
+            el.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let gpsMap = null;
+        let gpsMarker = null;
+        let gpsCircle = null;
+        let activeReason = '';
+
+        function switchMode(mode) {
+            hideAlert();
+            const simSection = document.getElementById('simSection');
+            const liveSection = document.getElementById('liveSection');
+            const btnSim = document.getElementById('btnModeSim');
+            const btnLive = document.getElementById('btnModeLive');
+
+            if (mode === 'sim') {
+                simSection.classList.remove('hidden');
+                liveSection.classList.add('hidden');
+                btnSim.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-lg shadow-blue-600/30 transition flex items-center gap-2';
+                btnLive.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-2';
+            } else {
+                simSection.classList.add('hidden');
+                liveSection.classList.remove('hidden');
+                btnLive.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 transition flex items-center gap-2';
+                btnSim.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition flex items-center gap-2';
+
+                setTimeout(() => {
+                    initGpsMap();
+                    if (gpsMap) {
+                        gpsMap.invalidateSize();
+                    }
+                }, 150);
+            }
+            refreshIcons();
+        }
+
+        function sendSimNotification() {
+            hideAlert();
+            const phone = document.getElementById('simPhone').value.trim();
+            const reason = document.getElementById('simReason').value.trim();
+
+            if (!phone) {
+                showAlert('Silakan isi nomor HP target terlebih dahulu.');
+                return;
+            }
+
+            activeReason = reason || 'Permintaan berbagi lokasi terkini.';
+            const token = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            document.getElementById('simFormArea').classList.add('hidden');
+            const resArea = document.getElementById('simResultArea');
+            resArea.classList.remove('hidden');
+            resArea.classList.add('flex');
+
+            const badge = document.getElementById('simBadge');
+            badge.textContent = 'Notifikasi Dikirim';
+            badge.className = 'px-3 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+
+            document.getElementById('phoneIdle').classList.add('hidden');
+            document.getElementById('smsLinkPreview').textContent = 'https://izin-lokasi.app/v/' + token;
+            document.getElementById('phoneSmsBanner').classList.remove('hidden');
+            showAlert('Notifikasi simulasi dikirim ke ' + phone + '. Ketuk pesan SMS di layar HP kanan untuk merespon.', 'success');
+        }
+
+        function openSmsConsent() {
+            document.getElementById('phoneSmsBanner').classList.add('hidden');
+            const consentScreen = document.getElementById('phoneConsentScreen');
+            consentScreen.classList.remove('hidden');
+            consentScreen.classList.add('flex');
+            document.getElementById('phoneReasonText').textContent = '"' + activeReason + '"';
+            refreshIcons();
+        }
+
+        function grantSimLocation() {
+            document.getElementById('phoneConsentScreen').classList.add('hidden');
+            const finalScreen = document.getElementById('phoneFinalScreen');
+            finalScreen.classList.remove('hidden');
+            finalScreen.classList.add('flex');
+
+            const iconBox = document.getElementById('phoneFinalIcon');
+            iconBox.className = 'w-12 h-12 rounded-full flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+            iconBox.innerHTML = '<i data-lucide="check" class="w-6 h-6"></i>';
+            document.getElementById('phoneFinalTitle').textContent = 'Lokasi Dibagikan';
+            document.getElementById('phoneFinalDesc').textContent = 'Koordinat lokasi terkirim ke dashboard.';
+
+            document.getElementById('simWaitingBox').classList.add('hidden');
+            document.getElementById('simDeniedBox').classList.add('hidden');
+            const grantedBox = document.getElementById('simGrantedBox');
+            grantedBox.classList.remove('hidden');
+            grantedBox.classList.add('flex');
+
+            const badge = document.getElementById('simBadge');
+            badge.textContent = 'Lokasi Aktif';
+            badge.className = 'px-3 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            refreshIcons();
+        }
+
+        function denySimLocation() {
+            document.getElementById('phoneConsentScreen').classList.add('hidden');
+            const finalScreen = document.getElementById('phoneFinalScreen');
+            finalScreen.classList.remove('hidden');
+            finalScreen.classList.add('flex');
+
+            const iconBox = document.getElementById('phoneFinalIcon');
+            iconBox.className = 'w-12 h-12 rounded-full flex items-center justify-center bg-rose-500/20 text-rose-400 border border-rose-500/40';
+            iconBox.innerHTML = '<i data-lucide="x" class="w-6 h-6"></i>';
+            document.getElementById('phoneFinalTitle').textContent = 'Akses Ditolak';
+            document.getElementById('phoneFinalDesc').textContent = 'Anda menolak berbagi lokasi.';
+
+            document.getElementById('simWaitingBox').classList.add('hidden');
+            document.getElementById('simGrantedBox').classList.add('hidden');
+            const deniedBox = document.getElementById('simDeniedBox');
+            deniedBox.classList.remove('hidden');
+            deniedBox.classList.add('flex');
+
+            const badge = document.getElementById('simBadge');
+            badge.textContent = 'Ditolak';
+            badge.className = 'px-3 py-1 rounded-full text-[11px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
+            refreshIcons();
+        }
+
+        function resetSim() {
+            hideAlert();
+            document.getElementById('simResultArea').classList.add('hidden');
+            document.getElementById('simResultArea').classList.remove('flex');
+            document.getElementById('simFormArea').classList.remove('hidden');
+
+            document.getElementById('simWaitingBox').classList.remove('hidden');
+            document.getElementById('simGrantedBox').classList.add('hidden');
+            document.getElementById('simDeniedBox').classList.add('hidden');
+
+            document.getElementById('phoneIdle').classList.remove('hidden');
+            document.getElementById('phoneSmsBanner').classList.add('hidden');
+            document.getElementById('phoneConsentScreen').classList.add('hidden');
+            document.getElementById('phoneFinalScreen').classList.add('hidden');
+
+            const badge = document.getElementById('simBadge');
+            badge.textContent = 'Siap Digunakan';
+            badge.className = 'px-3 py-1 rounded-full text-[11px] font-medium bg-slate-800 text-slate-400 border border-slate-700';
+            refreshIcons();
+        }
+
+        function initGpsMap() {
+            try {
+                if (gpsMap || !window.L) return;
+                gpsMap = L.map('gpsMap').setView([-6.1783, 106.6318], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap'
+                }).addTo(gpsMap);
+            } catch (err) {
+                showAlert('Peta belum dapat dimuat: ' + err.message);
+            }
+        }
+
+        function activateDeviceGPS() {
+            hideAlert();
+            initGpsMap();
+
+            if (!navigator.geolocation) {
+                showAlert('Browser perangkat ini tidak mendukung fitur lokasi GPS.');
+                return;
+            }
+
+            const statusEl = document.getElementById('gpsStatus');
+            statusEl.textContent = 'Meminta Izin GPS...';
+            statusEl.className = 'font-mono font-bold text-blue-400';
+
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const acc = pos.coords.accuracy;
+
+                    document.getElementById('gpsLat').textContent = lat.toFixed(6);
+                    document.getElementById('gpsLng').textContent = lng.toFixed(6);
+                    document.getElementById('gpsAcc').textContent = Math.round(acc) + ' meter';
+                    statusEl.textContent = 'GPS Aktif';
+                    statusEl.className = 'font-mono font-bold text-emerald-400';
+
+                    if (gpsMap && window.L) {
+                        const point = [lat, lng];
+                        if (!gpsMarker) {
+                            gpsMarker = L.marker(point).addTo(gpsMap).bindPopup('Posisi Anda').openPopup();
+                            gpsCircle = L.circle(point, { radius: acc }).addTo(gpsMap);
+                            gpsMap.setView(point, 16);
+                        } else {
+                            gpsMarker.setLatLng(point);
+                            gpsCircle.setLatLng(point);
+                            gpsCircle.setRadius(acc);
+                            gpsMap.panTo(point);
+                        }
+                    }
+                },
+                (err) => {
+                    statusEl.textContent = 'Gagal / Ditolak';
+                    statusEl.className = 'font-mono font-bold text-rose-400';
+                    showAlert('Tidak dapat mengambil lokasi GPS: ' + err.message);
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+        }
+    </script>
+</body>
+</html>
